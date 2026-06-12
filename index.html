@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ラブランゲージ診断</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --purple: #534AB7; --purple-light: #EEEDFE; --purple-dark: #3C3489;
+  --text: #1a1a1a; --text2: #666; --bg: #f8f8f6; --card: #ffffff; --border: rgba(0,0,0,0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --text: #f0f0f0; --text2: #aaa; --bg: #141414; --card: #1e1e1e; --border: rgba(255,255,255,0.12); --purple-light: #2a2550; }
+}
+html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif; }
+.page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 60px; }
+.card { background: var(--card); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 480px; border: 0.5px solid var(--border); }
+.brand { font-size: 12px; font-weight: 500; color: var(--purple); letter-spacing: 0.08em; margin-bottom: 20px; text-align: center; }
+.prog-bg { height: 5px; background: var(--border); border-radius: 3px; margin-bottom: 20px; }
+.prog-fill { height: 5px; background: var(--purple); border-radius: 3px; transition: width 0.35s ease; }
+.q-num { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.q-text { font-size: 16px; font-weight: 500; line-height: 1.55; margin-bottom: 20px; }
+.options { display: flex; flex-direction: column; gap: 10px; }
+.opt { background: var(--bg); border: 1.5px solid var(--border); border-radius: 14px; padding: 15px 16px; text-align: left; font-size: 14px; color: var(--text); cursor: pointer; line-height: 1.55; transition: border-color 0.15s, background 0.15s; -webkit-tap-highlight-color: transparent; width: 100%; }
+.opt:active { transform: scale(0.98); }
+.opt.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple-dark); }
+.nav { display: flex; gap: 10px; margin-top: 24px; }
+.nav-btn { flex: 1; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--text); -webkit-tap-highlight-color: transparent; }
+.nav-btn:active { transform: scale(0.98); }
+.nav-btn.primary { background: var(--purple); color: white; border-color: var(--purple); }
+.nav-btn.primary:active { background: var(--purple-dark); }
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+.top-emoji { font-size: 52px; text-align: center; display: block; margin: 12px 0 16px; }
+.top-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 10px; }
+.top-desc { font-size: 13px; color: var(--text2); text-align: center; line-height: 1.7; margin-bottom: 8px; }
+.top-src { font-size: 11px; color: var(--text2); text-align: center; margin-bottom: 24px; opacity: 0.7; }
+.tags { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; margin-bottom: 24px; }
+.tag { font-size: 12px; background: var(--purple-light); color: var(--purple); border-radius: 20px; padding: 5px 12px; }
+.start-btn { width: 100%; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: var(--purple); color: white; -webkit-tap-highlight-color: transparent; }
+.start-btn:active { transform: scale(0.98); background: var(--purple-dark); }
+.result-emoji { font-size: 52px; text-align: center; display: block; margin-bottom: 10px; }
+.result-label { font-size: 12px; color: var(--text2); text-align: center; margin-bottom: 4px; }
+.result-type { font-size: 22px; font-weight: 600; text-align: center; margin-bottom: 14px; }
+.result-desc { font-size: 14px; color: var(--text2); line-height: 1.7; text-align: center; margin-bottom: 24px; }
+.bars { display: flex; flex-direction: column; gap: 13px; margin-bottom: 24px; }
+.bar-row { display: flex; flex-direction: column; gap: 5px; }
+.bar-meta { display: flex; justify-content: space-between; font-size: 13px; }
+.bar-name { font-weight: 500; }
+.bar-pct { color: var(--text2); }
+.bar-bg { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+.bar-fill { height: 10px; border-radius: 5px; }
+.retry-btn { width: 100%; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--text); -webkit-tap-highlight-color: transparent; }
+.retry-btn:active { transform: scale(0.98); }
+</style>
+</head>
+<body>
+<div class="page"><div class="card" id="app"></div></div>
+<script>
+const TYPES = {
+  A: { name:'肯定的な言葉',    emoji:'💬', color:'#534AB7', desc:'言葉による承認・感謝・愛情表現に最も深く愛情を感じます。パートナーからの励ましや褒め言葉が心の栄養になります。' },
+  B: { name:'クオリティ・タイム', emoji:'⏰', color:'#185FA5', desc:'一緒に過ごす質の高い時間に愛情を感じます。スマホをしまって向き合ってくれること、どこかへ一緒に行くことが大切です。' },
+  C: { name:'贈り物',          emoji:'🎁', color:'#993C1D', desc:'贈り物の大小より「気持ち」が大切。プレゼントを受け取ることで愛されていると実感します。' },
+  D: { name:'サービス行為',    emoji:'🤝', color:'#0F6E56', desc:'相手が自分のためにしてくれる行動に愛情を感じます。家事の手伝いや気配りが言葉以上に心に響きます。' },
+  E: { name:'身体的なタッチ',  emoji:'🤗', color:'#993556', desc:'ハグ・手をつなぐ・キスなど身体的な接触から愛情を感じます。温もりが安心感に直結するタイプです。' }
+};
+
+const QS = [
+  { a:'パートナーから愛情のこもったメモやカードをもらうと気分がいい。', la:'A', b:'パートナーに抱きつかれると嬉しい。', lb:'E' },
+  { a:'パートナーと二人きりでいるのが好きだ。', la:'B', b:'パートナーが庭仕事などを手伝ってくれると、パートナーの愛情を感じる。', lb:'D' },
+  { a:'パートナーから特別の贈り物をもらうと幸せを感じる。', la:'C', b:'パートナーと長期の旅行に出かけるのが好きだ。', lb:'B' },
+  { a:'パートナーが私の洋服を洗濯してくれると愛情を感じる。', la:'D', b:'パートナーに触れられるのが好きだ。', lb:'E' },
+  { a:'パートナーが肩などに腕を回してくると、「愛されている」と感じる。', la:'E', b:'パートナーが贈り物で私を驚かせてくれると、パートナーに愛されているとわかる。', lb:'C' },
+  { a:'パートナーとならどこに行くのも好きだ。', la:'B', b:'パートナーと手をつなぐのが好きだ。', lb:'E' },
+  { a:'パートナーのくれる贈り物を大切に思う。', la:'C', b:'パートナーに「愛してる」と言われるのが好きだ。', lb:'A' },
+  { a:'パートナーがぴったりとそばに座ってくれるのが好きだ。', la:'E', b:'パートナーが「かっこいい」とか、「きまってる」と言ってくれると嬉しい。', lb:'A' },
+  { a:'パートナーと一緒に時間を過ごす時に幸せを感じる。', la:'B', b:'どんなに小さな物でも、パートナーからの贈り物は私にとって大事な物だ。', lb:'C' },
+  { a:'パートナーに「誇りに思う」と言われる時、「愛されている」と感じる。', la:'A', b:'パートナーが私のために料理をしてくれると、パートナーに愛されていることがわかる。', lb:'D' },
+  { a:'何であれ、パートナーと一緒に何かをするのが好きだ。', la:'B', b:'パートナーの励ましの言葉を聞くと嬉しい。', lb:'A' },
+  { a:'パートナーが私のために細々したことをやってくれることは、言葉よりも心にしみる。', la:'D', b:'パートナーを腕に抱くのが好きだ。', lb:'E' },
+  { a:'パートナーのほめ言葉は私にとって重要だ。', la:'A', b:'パートナーが私の本当に気にいる物をプレゼントしてくれるととても嬉しい。', lb:'C' },
+  { a:'パートナーのそばにいるだけで気分がいい。', la:'B', b:'パートナーにマッサージしてもらうのが大好きだ。', lb:'E' },
+  { a:'私が成し遂げたことに対するパートナーの反応にとても励まされる。', la:'A', b:'パートナーが本当はやりたくないことをして私を助けてくれる時、感動する。', lb:'D' },
+  { a:'パートナーのキスならいつでも歓迎だ。', la:'E', b:'私のしたいことにパートナーが心から関心を示してくれると嬉しい。', lb:'B' },
+  { a:'手伝いが必要な時、パートナーは頼りになる。', la:'D', b:'パートナーからもらったプレゼントを開ける時は、今でもわくわくする。', lb:'C' },
+  { a:'パートナーが私の外見をほめてくれるのが好きだ。', la:'A', b:'パートナーが私の話に耳を傾け、すぐに裁いたり批判したりしないところが好きだ。', lb:'B' },
+  { a:'パートナーが近くにいると触らずにいられない。', la:'E', b:'パートナーが時々私のためにお使いに行ってくれることをありがたく思う。', lb:'D' },
+  { a:'いろいろと私を助けてくれるパートナーは、表彰されるべきだ。', la:'D', b:'パートナーはなんて思いのこもった贈り物をくれることかと、感動することがある。', lb:'C' },
+  { a:'パートナーが私に一心の注意を向けてくれるととても嬉しい。', la:'B', b:'家をきれいにしておくことは、大切なサービス行為だと思う。', lb:'D' },
+  { a:'私の誕生日にパートナーが何をくれるか、いつも楽しみだ。', la:'C', b:'私が大切な存在だということを、パートナーにいつでも何度でも言われたい。', lb:'A' },
+  { a:'私にプレゼントをくれることで、パートナーは私への愛を伝えてくれる。', la:'C', b:'パートナーは家の周りの仕事を手伝うことで愛情を示してくれる。', lb:'D' },
+  { a:'パートナーが私の話を中断しないで聞いてくれるところが好きだ。', la:'B', b:'パートナーからのプレゼントなら、いつでもいつまでも嬉しい。', lb:'C' },
+  { a:'パートナーは私が疲れていると、それを察して、何をして手伝ったらいいかと尋ねてくれる。', la:'D', b:'目的地がどこだろうと、とにかくパートナーと一緒に出かけるのが好きだ。', lb:'B' },
+  { a:'パートナーとセックスするのが大好きだ。', la:'E', b:'パートナーのプレゼントに驚かされるのが大好きだ。', lb:'C' },
+  { a:'パートナーの励ましの言葉が私に自信を与えてくれる。', la:'A', b:'パートナーと映画を見るのが好きだ。', lb:'B' },
+  { a:'パートナーからのプレゼントに勝る贈り物はない。', la:'C', b:'パートナーに触らずにはいられない。', lb:'E' },
+  { a:'パートナーが、ほかにやることがあるのに私を手伝ってくれる時、とてもありがたく思う。', la:'D', b:'「感謝してる」とパートナーが言ってくれると、ものすごく気分がいい。', lb:'A' },
+  { a:'しばらく離れていたあと、パートナーを抱き寄せてキスするのが好きだ。', la:'E', b:'私を信頼している、とパートナーに言ってもらうのが好きだ。', lb:'A' }
+];
+
+// ---- 状態はすべてここで管理 ----
+function newState() {
+  return { screen: 'top', cur: 0, ans: {}, scores: {A:0,B:0,C:0,D:0,E:0} };
+}
+var S = newState();
+
+function showTop()    { S = newState(); S.screen = 'top';  draw(); }
+function startQuiz()  { S = newState(); S.screen = 'quiz'; draw(); }
+
+function choose(opt) {
+  var q = QS[S.cur];
+  if (S.ans[S.cur]) S.scores[S.ans[S.cur] === 'a' ? q.la : q.lb]--;
+  S.ans[S.cur] = opt;
+  S.scores[opt === 'a' ? q.la : q.lb]++;
+  draw();
+}
+
+function prev() {
+  if (S.cur > 0) { S.cur--; draw(); }
+}
+
+function next() {
+  if (S.ans[S.cur] === undefined) return;
+  if (S.cur === QS.length - 1) { S.screen = 'result'; draw(); return; }
+  S.cur++;
+  draw();
+}
+
+function draw() {
+  var app = document.getElementById('app');
+  if (S.screen === 'top')    { app.innerHTML = topHTML();    return; }
+  if (S.screen === 'result') { app.innerHTML = resultHTML(); return; }
+  app.innerHTML = quizHTML();
+}
+
+function topHTML() {
+  return '<div class="brand">LOVE LANGUAGE QUIZ</div>' +
+    '<span class="top-emoji">💝</span>' +
+    '<h1 class="top-title">ラブランゲージ診断</h1>' +
+    '<p class="top-desc">30問の二択で、あなたが愛情をどのように受け取るかがわかります。直感で選んでください。</p>' +
+    '<p class="top-src">Gary Chapman「愛を伝える5つの方法」をもとに作成</p>' +
+    '<div class="tags">' +
+      '<span class="tag">💬 肯定的な言葉</span>' +
+      '<span class="tag">⏰ クオリティ・タイム</span>' +
+      '<span class="tag">🎁 贈り物</span>' +
+      '<span class="tag">🤝 サービス行為</span>' +
+      '<span class="tag">🤗 身体的なタッチ</span>' +
+    '</div>' +
+    '<button class="start-btn" onclick="startQuiz()">診断スタート →</button>';
+}
+
+function quizHTML() {
+  var q = QS[S.cur];
+  var sel = S.ans[S.cur];
+  var prog = Math.round((S.cur / QS.length) * 100);
+  var isLast = S.cur === QS.length - 1;
+  var hasAns = sel !== undefined;
+  return '<div class="brand">LOVE LANGUAGE QUIZ</div>' +
+    '<div class="prog-bg"><div class="prog-fill" style="width:' + prog + '%"></div></div>' +
+    '<p class="q-num">質問 ' + (S.cur + 1) + ' / ' + QS.length + '</p>' +
+    '<p class="q-text">より当てはまるのはどちらですか？</p>' +
+    '<div class="options">' +
+      '<button class="opt' + (sel==='a'?' selected':'') + '" onclick="choose(\'a\')">' + q.a + '</button>' +
+      '<button class="opt' + (sel==='b'?' selected':'') + '" onclick="choose(\'b\')">' + q.b + '</button>' +
+    '</div>' +
+    '<div class="nav">' +
+      '<button class="nav-btn" onclick="prev()"' + (S.cur===0?' disabled':'') + '>← 戻る</button>' +
+      '<button class="nav-btn primary" onclick="next()"' + (!hasAns?' disabled':'') + '>' + (isLast?'結果を見る →':'次へ →') + '</button>' +
+    '</div>';
+}
+
+function resultHTML() {
+  var total = 0;
+  for (var k in S.scores) total += S.scores[k];
+  var sorted = Object.keys(S.scores).sort(function(a,b){ return S.scores[b]-S.scores[a]; });
+  var topKey = sorted[0];
+  var top = TYPES[topKey];
+  var bars = '';
+  for (var i = 0; i < sorted.length; i++) {
+    var k = sorted[i];
+    var t = TYPES[k];
+    var v = S.scores[k];
+    var p = total ? Math.round(v / total * 100) : 0;
+    bars += '<div class="bar-row">' +
+      '<div class="bar-meta"><span class="bar-name">' + t.emoji + ' ' + t.name + '</span><span class="bar-pct">' + v + '点 (' + p + '%)</span></div>' +
+      '<div class="bar-bg"><div class="bar-fill" style="width:' + p + '%;background:' + t.color + '"></div></div>' +
+    '</div>';
+  }
+  return '<div class="brand">LOVE LANGUAGE QUIZ</div>' +
+    '<span class="result-emoji">' + top.emoji + '</span>' +
+    '<p class="result-label">あなたのラブランゲージは</p>' +
+    '<p class="result-type">「' + top.name + '」タイプ</p>' +
+    '<p class="result-desc">' + top.desc + '</p>' +
+    '<div class="bars">' + bars + '</div>' +
+    '<button class="retry-btn" onclick="startQuiz()">もう一度やり直す</button>';
+}
+
+draw();
+</script>
+</body>
+</html>
